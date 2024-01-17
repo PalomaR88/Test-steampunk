@@ -1,0 +1,39 @@
+- name: 'Clonando ficheros de configuración desde GIT'
+  hosts: "{{ ambit | default('-')  }}"
+  become: true
+  tasks:
+    - name: Create temporary work directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: configapache
+      register: tmp_work_dir
+
+    - name: "Configure project path"
+      ansible.builtin.set_fact:
+        WORKING_DIRECTORY: "{{ tmp_work_dir.path }}"
+
+    - name: Block to have always to delete temporary directory
+      block:
+        - name: "Clone apache repository"
+          ansible.builtin.include_role:
+            name: clone_git
+
+        - name: "config_instance"
+          ansible.builtin.include_role:
+            name: config_instance
+
+        - name: "reset_apache"
+          ansible.builtin.include_role:
+            name: reset_apache
+
+        - name: "service_probe"
+          ansible.builtin.include_role:
+            name: service_probe
+
+      always:
+        - name: Delete Temporaly Directory in remote host
+          ansible.builtin.file:
+            path: "{{ WORKING_DIRECTORY }}"
+            state: absent
+          no_log: true
+
